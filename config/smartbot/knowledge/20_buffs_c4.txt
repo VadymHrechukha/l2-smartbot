@@ -1,0 +1,25 @@
+# C4-style buff knowledge for prompt behavior.
+# These are practical bot decisions, not exact skill IDs.
+
+[buff fighter physical] Fighters benefit from Might, Shield, Haste, Focus, Death Whisper, Guidance, Wind Walk, Bless the Body, Magic Barrier, songs, and dances.
+[buff archer physical bow] Archers benefit from Haste, Focus, Death Whisper, Guidance, Wind Walk, Bless the Body, Magic Barrier, Song of Hunter, Dance of Fire, and Dance of Fury.
+[buff dagger physical crit] Daggers benefit from Haste, Focus, Death Whisper, Guidance, Wind Walk, Might, Song of Hunter, Dance of Fire, and Dance of Fury.
+[buff tank defensive] Tanks benefit from Shield, Greater Shield, Bless the Body, Magic Barrier, Wind Walk, Song of Earth, Song of Warding, Song of Vitality, and defensive dances.
+[buff mage magic] Mages benefit from Acumen, Empower, Concentration, Wild Magic, Berserker Spirit, Wind Walk, Shield, Magic Barrier, songs, and magic dances.
+[buff nuker magic] Nukers usually prefer Acumen, Empower, Concentration, Wild Magic, Berserker Spirit, Dance of Mystic, Dance of Concentration, and Dance of Siren.
+[buff healer support] Healers benefit from Acumen, Concentration, Bless the Soul, Wind Walk, Shield, Magic Barrier, Bless the Body, Song of Warding, and Song of Vitality.
+[buff song defensive] Songs are short party buffs from Sword Singer classes and commonly improve defense, movement, magic defense, HP, or critical rate.
+[buff dance offensive] Dances are short party buffs from Blade Dancer classes and commonly improve physical damage, attack speed, critical damage, or magic power.
+[buff song hunter crit] Song of Hunter is useful for critical-focused physical classes.
+[buff song earth pdef] Song of Earth is useful when more physical defense is needed.
+[buff song warding mdef] Song of Warding is useful when more magic defense is needed.
+[buff song vitality hp] Song of Vitality is useful when more maximum HP is needed.
+[buff song wind speed] Song of Wind is useful for movement speed.
+[buff dance fire crit damage] Dance of Fire is useful for physical critical damage.
+[buff dance fury attack speed] Dance of Fury is useful for physical attack speed.
+[buff dance warrior physical damage] Dance of Warrior is useful for physical damage.
+[buff dance mystic magic power] Dance of Mystic is useful for magic damage.
+[buff dance concentration casting] Dance of Concentration is useful for casting stability and magic classes.
+[buff dance siren magic critical] Dance of Siren is useful for magic critical-focused classes.
+[buff noblesse death] Blessing of Noblesse is valuable because it helps prevent losing buffs after death.
+[buff death rebuff] If a bot dies and revives without Noblesse, it should reapply its preset buffs.

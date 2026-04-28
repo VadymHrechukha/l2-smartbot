@@ -1,0 +1,51 @@
+# Real C4 hunting/location knowledge.
+# Keep each fact short because it will be injected into the LLM prompt.
+
+[location level 1 8 talking island cedric training hall] Cedric's Training Hall is a very low level Talking Island area around levels 1-8.
+[location level 8 18 elven fortress] Elven Fortress is an Elven Territory dungeon around levels 8-18.
+[location level 16 20 school dark arts] School of Dark Arts is a Dark Elven area around levels 16-20.
+[location level 19 30 abandoned coal mines dwarven] Abandoned Coal Mines is a Dwarven Territory area around levels 19-30.
+[location level 18 35 orc barracks gludin] Orc Barracks is a Gludin Territory hunting ground around levels 18-35.
+[location level 16 33 abandoned camp gludin] Abandoned Camp is a Gludin Territory hunting ground around levels 16-33.
+[location level 22 40 ant nest wasteland] Ant Nest is a Gludio Territory dungeon around levels 22-40.
+[location level 22 40 wasteland gludio] Wasteland is a Gludio Territory hunting area around levels 22-40.
+[location level 20 40 execution ground dion undead] Execution Ground near Dion is a level 20-40 hunting area with many undead mobs.
+[location level 25 50 cruma marshlands dion] Cruma Marshlands near Dion is around levels 25-50.
+[location level 30 70 partisan hideaway dion] Partisan Hideaway in Dion Territory is around levels 30-70.
+[location level 46 50 tanor canyon dion] Tanor Canyon near Dion is around levels 46-50.
+[location level 30 65 dragon valley giran] Dragon Valley near Giran is a broad hunting area around levels 30-65.
+[location level 60 75 lair antharas dragon valley] Lair of Antharas is a high level dungeon around levels 60-75.
+[location level 38 40 hardins academy giran] Hardin's Academy is around levels 38-40.
+[location level 45 56 enchanted valley hunter village] Enchanted Valley near Hunter Village is around levels 45-56.
+[location level 40 55 forest mirrors hunter village] Forest of Mirrors near Hunter Village is around levels 40-55.
+[location level 41 45 timak outpost oren] Timak Outpost near Oren is around levels 41-45.
+[location level 40 70 ivory tower oren] Ivory Tower area near Oren is around levels 40-70.
+[location level 40 50 sea spores oren] Sea of Spores near Oren is around levels 40-50.
+[location level 35 60 plains lizardmen oren] Plains of the Lizardmen near Oren is around levels 35-60.
+[location level 50 56 forest outlaw aden] Forest of Outlaw near Aden is around levels 50-56.
+[location level 55 80 field massacre aden] Field of Massacre near Aden is around levels 55-80.
+[location level 60 79 tower insolence toi aden] Tower of Insolence is a high level Aden dungeon around levels 60-79.
+[location level 45 70 cemetery aden undead] The Cemetery near Aden is around levels 45-70.
+[location level 60 75 forbidden gateway aden] Forbidden Gateway near Aden is around levels 60-75.
+[location level 54 79 giants cave aden] Giant's Cave near Aden is around levels 54-79.
+[location level 40 51 alligator island heine] Alligator Island near Heine is around levels 40-51.
+[location level 43 65 devils isle heine] Devil's Isle near Heine is around levels 43-65.
+[location level 63 73 cursed village rune] Cursed Village near Rune is around levels 63-73.
+[location level 63 71 forest dead rune undead] Forest of the Dead near Rune is around levels 63-71.
+[location level 63 69 beast farm rune] Beast Farm near Rune is around levels 63-69.
+[location level 60 70 valley saints rune] Valley of Saints near Rune is around levels 60-70.
+[location level 65 69 swamp screams rune] Swamp of Screams near Rune is around levels 65-69.
+[location level 68 76 wall argos goddard] Wall of Argos near Goddard is around levels 68-76.
+[location level 68 75 shrine loyal goddard] Shrine of the Loyal near Goddard is around levels 68-75.
+[location level 76 84 imperial tomb goddard] Imperial Tomb is a high level Goddard dungeon around levels 76-84.
+[location level 78 85 forge gods fog goddard] Forge of the Gods is a high level Goddard hunting area around levels 78-85.
+[location level 77 87 ketra orc outpost goddard] Ketra Orc Outpost is around levels 77-87.
+[location level 69 85 varka silenos outpost goddard] Varka Silenos Outpost is around levels 69-85.
+[location level 20 30 necropolis sacrifice seven signs] Necropolis of Sacrifice is a Seven Signs dungeon around levels 20-30.
+[location level 30 40 heretics catacomb seven signs] Heretics Catacomb is a Seven Signs dungeon around levels 30-40.
+[location level 40 51 catacomb branded seven signs] Catacomb of the Branded is a Seven Signs dungeon around levels 40-51.
+[location level 50 60 catacomb apostate seven signs] Catacomb of the Apostate is a Seven Signs dungeon around levels 50-60.
+[location level 60 72 catacomb witch seven signs] Catacomb of the Witch is a Seven Signs dungeon around levels 60-72.
+[location level 72 80 catacomb dark omens seven signs] Catacomb of Dark Omens is a Seven Signs dungeon around levels 72-80.
+[location level 75 80 catacomb forbidden path seven signs] Catacomb of the Forbidden Path is a Seven Signs dungeon around levels 75-80.
+[location level 70 80 disciples necropolis seven signs] Disciples Necropolis is a Seven Signs dungeon around levels 70-80.

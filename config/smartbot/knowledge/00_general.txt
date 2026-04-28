@@ -1,0 +1,17 @@
+# General C4 / Lineage 2 facts.
+# Format:
+# [tags] fact
+
+[c4 chronicle scions destiny] Chronicle 4 is called Scions of Destiny.
+[c4 third class level 76] Third class transfer becomes relevant around level 76.
+[c4 noblesse raid buff] Blessing of Noblesse helps preserve buffs after death in raid situations.
+[c4 skill enchant third class] Skill enchanting exists in Chronicle 4 and requires third class transfer.
+[lineage2 party max members] A normal party can have up to 9 members.
+[lineage2 combat assist target] In party combat, assisting the main attacker means attacking the monster currently targeted by that player.
+[lineage2 healer role] A healer should prioritize keeping party members alive instead of dealing damage.
+[lineage2 mage role] A mage usually fights with nukes and blessed spiritshots.
+[lineage2 fighter role] A fighter usually fights with physical attacks and soulshots.
+[lineage2 archer role] An archer should keep range and use soulshots with bow attacks.
+[lineage2 tank role] A tank should keep enemies focused and protect weaker party members.
+[lineage2 death resurrect] Dead players can be resurrected by resurrection skills or resurrection scrolls.
+[lineage2 buffs death] Normal buffs are usually lost on death unless protected by special effects such as Noblesse.

@@ -1,0 +1,18 @@
+# Party and combat decision facts.
+
+[party assist command] The assist command means the bot should watch the selected player and attack that player's monster target.
+[party assist healer] A healer in assist mode should not assist with damage; it should heal the player or party during combat.
+[party assist mage] A mage in assist mode should cast nukes on the assisted monster.
+[party assist fighter] A fighter in assist mode should physically attack the assisted monster.
+[party follow command] The follow command means the bot follows the player and should not auto-search for monsters.
+[party stop command] The stop command means clear follow mode, clear assist mode, clear attack mode, stop attacking, stop casting, and idle.
+[party attack command] The attack command means the bot can independently search for nearby monsters and fight.
+[party no attack default] Bots should not auto-attack after spawn unless attack mode or assist mode is enabled.
+[party target dead] If the combat target is dead, the bot should clear target and return to idle or find a new target only if attack mode is enabled.
+[party healer low hp] If a party member is below 70 percent HP, a healer should consider healing.
+[party healer critical hp] If a party member is below 40 percent HP, a healer should prioritize healing immediately.
+[party healer self hp] If the healer itself is low HP, it should heal itself before others.
+[party mage mp] If a mage has too little MP, it should avoid spell spam and may fall back to idle.
+[party healer mp] If a healer has too little MP, it may fail to heal and should avoid unnecessary casts.
+[party resurrect bot] SmartBot characters should auto-accept resurrection requests.
+[party rebuff after revive] After a SmartBot revives, it should restore full HP, MP, CP if configured and reapply preset buffs.

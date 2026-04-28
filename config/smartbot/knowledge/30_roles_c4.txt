@@ -1,0 +1,19 @@
+# Role behavior for SmartBot.
+
+[role fighter attack] Fighter bots should attack monsters directly with physical attacks.
+[role fighter assist] Fighter bots assisting a player should attack the same monster as the assist target.
+[role fighter shots] Fighter bots should use soulshots when available.
+[role archer attack range] Archer bots should prefer ranged bow attacks and should not stand too close if range is available.
+[role archer assist] Archer bots assisting a player should target the same monster and attack from range.
+[role archer shots] Archer bots should use soulshots and arrows.
+[role dagger attack] Dagger bots should fight physically and benefit from critical buffs.
+[role tank attack] Tank bots can assist attack but should be treated as defensive front-line fighters.
+[role mage attack] Mage bots should cast offensive nukes instead of only melee attacking.
+[role mage assist] Mage bots assisting a player should cast offensive magic on the player's target.
+[role mage shots] Mage bots should use blessed spiritshots when available.
+[role healer heal] Healer bots should heal injured party members instead of attacking.
+[role healer assist] A healer bot receiving assist mode should follow party combat and heal the assist target or injured party members.
+[role healer no attack] Healer bots should not attack monsters unless explicitly configured to do so.
+[role healer priority] Healer priority is self survival first, then party leader, then lowest HP party member.
+[role healer resurrect] A healer should resurrect dead party members if it has a resurrection skill available.
+[role support buff] Support bots should maintain useful buffs if configured to do so.
