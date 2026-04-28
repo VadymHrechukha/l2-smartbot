@@ -2,7 +2,7 @@
 
 # SmartBot - L2J Fake Player system powered by AI
 
-SmartBot is an AI-assisted fake player system for Lineage 2 C4 / Scions of Destiny server projects based on L2J.
+SmartBot is an AI-assisted fake player system for Lineage 2 Scions of Destiny (C4) server projects based on L2J.
 
 It adds managed fake-player bots that can be spawned by GMs, follow players, assist in combat, heal, resurrect, buff party members, use role-specific skills, and optionally talk through a local *Ollama model*.
 
