@@ -8,6 +8,10 @@ It adds managed fake-player bots that can be spawned by GMs, follow players, ass
 
 The project is designed for private server development, testing, PvE helpers, AI NPC experiments, and local gameplay automation.
 
+## Demo
+
+Watch the video guide here 👉 https://youtu.be/e95N8VrE9So
+
 ## Features
 
 ### Bot presets
