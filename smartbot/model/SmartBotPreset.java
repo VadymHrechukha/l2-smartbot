@@ -1,6 +1,6 @@
-package net.sf.l2j.gameserver.smartbot.model;
+package org.l2jmobius.gameserver.smartbot.model;
 
-import net.sf.l2j.Config;
+import org.l2jmobius.gameserver.config.custom.SmartBotConfig;
 
 public enum SmartBotPreset {
     ARCHER(
@@ -19,7 +19,7 @@ public enum SmartBotPreset {
                             {6389, 2},
                             {1467, 5000},
                             {1345, 5000},
-                            {Config.BOT_MANA_POTION_ITEM_ID, Config.BOT_MANA_POTION_COUNT}
+                            {SmartBotConfig.BOT_MANA_POTION_ITEM_ID, SmartBotConfig.BOT_MANA_POTION_COUNT}
                     },
             Buffs.FIGHTER_FULL_BUFFS
     ),
@@ -39,7 +39,7 @@ public enum SmartBotPreset {
                             {6388, 2},
                             {6389, 2},
                             {3952, 5000},
-                            {Config.BOT_MANA_POTION_ITEM_ID, Config.BOT_MANA_POTION_COUNT}
+                            {SmartBotConfig.BOT_MANA_POTION_ITEM_ID, SmartBotConfig.BOT_MANA_POTION_COUNT}
                     },
             Buffs.MAGE_FULL_BUFFS
     ),
@@ -59,7 +59,7 @@ public enum SmartBotPreset {
                             {6388, 2},
                             {6389, 2},
                             {3952, 5000},
-                            {Config.BOT_MANA_POTION_ITEM_ID, Config.BOT_MANA_POTION_COUNT}
+                            {SmartBotConfig.BOT_MANA_POTION_ITEM_ID, SmartBotConfig.BOT_MANA_POTION_COUNT}
                     },
             Buffs.MAGE_FULL_BUFFS
     ),
@@ -79,7 +79,7 @@ public enum SmartBotPreset {
                             {6388, 2},
                             {6389, 2},
                             {3952, 5000},
-                            {Config.BOT_MANA_POTION_ITEM_ID, Config.BOT_MANA_POTION_COUNT}
+                            {SmartBotConfig.BOT_MANA_POTION_ITEM_ID, SmartBotConfig.BOT_MANA_POTION_COUNT}
                     },
             Buffs.MAGE_FULL_BUFFS
     ),
@@ -100,7 +100,7 @@ public enum SmartBotPreset {
                             {6389, 2},
                             {1467, 5000},
                             {1345, 5000},
-                            {Config.BOT_MANA_POTION_ITEM_ID, Config.BOT_MANA_POTION_COUNT}
+                            {SmartBotConfig.BOT_MANA_POTION_ITEM_ID, SmartBotConfig.BOT_MANA_POTION_COUNT}
                     },
             Buffs.FIGHTER_FULL_BUFFS
     ),
@@ -123,7 +123,7 @@ public enum SmartBotPreset {
                             {6389, 2},
                             {1467, 5000},
                             {1345, 5000},
-                            {Config.BOT_MANA_POTION_ITEM_ID, Config.BOT_MANA_POTION_COUNT}
+                            {SmartBotConfig.BOT_MANA_POTION_ITEM_ID, SmartBotConfig.BOT_MANA_POTION_COUNT}
                     },
             Buffs.FIGHTER_FULL_BUFFS
     );

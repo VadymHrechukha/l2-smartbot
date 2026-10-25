@@ -1,23 +1,27 @@
-package net.sf.l2j.gameserver.smartbot;
+package org.l2jmobius.gameserver.smartbot;
 
-import java.util.Collection;
+import java.util.List;
 import java.util.concurrent.ScheduledFuture;
 
-import net.sf.l2j.Config;
-import net.sf.l2j.gameserver.ThreadPoolManager;
-import net.sf.l2j.gameserver.ai.CtrlIntention;
-import net.sf.l2j.gameserver.datatables.SkillTable;
-import net.sf.l2j.gameserver.handler.IItemHandler;
-import net.sf.l2j.gameserver.handler.ItemHandler;
-import net.sf.l2j.gameserver.model.*;
-import net.sf.l2j.gameserver.model.actor.instance.L2MonsterInstance;
-import net.sf.l2j.gameserver.model.actor.instance.L2PcInstance;
-import net.sf.l2j.gameserver.network.clientpackets.Say2;
-import net.sf.l2j.gameserver.network.serverpackets.CreatureSay;
-import net.sf.l2j.gameserver.smartbot.model.SmartBotData;
-import net.sf.l2j.gameserver.smartbot.model.SmartBotPreset;
-import net.sf.l2j.gameserver.smartbot.model.SmartBotRole;
-import net.sf.l2j.gameserver.templates.L2EtcItem;
+import org.l2jmobius.commons.threads.ThreadPool;
+import org.l2jmobius.gameserver.config.custom.SmartBotConfig;
+import org.l2jmobius.gameserver.data.xml.SkillData;
+import org.l2jmobius.gameserver.entity.Location;
+import org.l2jmobius.gameserver.entity.World;
+import org.l2jmobius.gameserver.entity.WorldObject;
+import org.l2jmobius.gameserver.entity.actor.Player;
+import org.l2jmobius.gameserver.entity.actor.instance.Monster;
+import org.l2jmobius.gameserver.entity.groups.Party;
+import org.l2jmobius.gameserver.entity.item.EtcItem;
+import org.l2jmobius.gameserver.entity.item.instance.Item;
+import org.l2jmobius.gameserver.handler.IItemHandler;
+import org.l2jmobius.gameserver.handler.ItemHandler;
+import org.l2jmobius.gameserver.mechanics.skill.Skill;
+import org.l2jmobius.gameserver.network.enums.ChatType;
+import org.l2jmobius.gameserver.network.serverpackets.CreatureSay;
+import org.l2jmobius.gameserver.smartbot.model.SmartBotData;
+import org.l2jmobius.gameserver.smartbot.model.SmartBotPreset;
+import org.l2jmobius.gameserver.smartbot.model.SmartBotRole;
 
 public class SmartBotController implements Runnable {
 
@@ -92,7 +96,7 @@ public class SmartBotController implements Runnable {
                     {1389, 3}  // Greater Shield
             };
 
-    private final L2PcInstance bot;
+    private final Player bot;
     private final SmartBotData data;
 
     private ScheduledFuture<?> task;
@@ -108,14 +112,14 @@ public class SmartBotController implements Runnable {
     private static final long TANK_AGGRO_COOLDOWN_MS = 3500L;
 
 
-    public SmartBotController(L2PcInstance bot, SmartBotData data) {
+    public SmartBotController(Player bot, SmartBotData data) {
         this.bot = bot;
         this.data = data;
     }
 
     public void start() {
         if (task == null) {
-            task = ThreadPoolManager.getInstance().scheduleGeneralAtFixedRate(this, 1000L, 1000L);
+            task = ThreadPool.scheduleAtFixedRate(this, 1000L, 1000L);
         }
     }
 
@@ -142,7 +146,7 @@ public class SmartBotController implements Runnable {
 
             if (role == SmartBotRole.BUFFER)
             {
-                final L2PcInstance buffTarget = getRequestedBuffTarget();
+                final Player buffTarget = getRequestedBuffTarget();
                 if (buffTarget != null)
                 {
                     handleBufferBehavior(buffTarget);
@@ -152,7 +156,7 @@ public class SmartBotController implements Runnable {
 
             if (role == SmartBotRole.BUFFER)
             {
-                final L2PcInstance buffTarget = findBuffTarget();
+                final Player buffTarget = findBuffTarget();
                 if (buffTarget != null)
                 {
                     handleBufferBehavior(buffTarget);
@@ -165,12 +169,12 @@ public class SmartBotController implements Runnable {
              * This must stay before assist/attack/resurrection logic,
              * otherwise old combat/support state can block movement.
              */
-            final L2PcInstance followTarget = getFollowTarget();
+            final Player followTarget = getFollowTarget();
             if (followTarget != null)
             {
                 if (role == SmartBotRole.HEALER)
                 {
-                    final L2PcInstance healTarget = findHealTarget();
+                    final Player healTarget = findHealTarget();
                     if (healTarget != null)
                     {
                         handleHealerBehavior(healTarget);
@@ -188,7 +192,7 @@ public class SmartBotController implements Runnable {
              */
             if (role == SmartBotRole.HEALER)
             {
-                final L2PcInstance deadFollowTarget = getFollowTargetAllowDead();
+                final Player deadFollowTarget = getFollowTargetAllowDead();
                 if (deadFollowTarget != null && deadFollowTarget.isDead())
                 {
                     handleResurrectionBehavior(deadFollowTarget);
@@ -203,12 +207,12 @@ public class SmartBotController implements Runnable {
             /*
              * ASSIST mode.
              */
-            final L2PcInstance assistTarget = getAssistTarget();
+            final Player assistTarget = getAssistTarget();
             if (assistTarget != null)
             {
                 if (role == SmartBotRole.HEALER)
                 {
-                    final L2PcInstance healTarget = findHealTarget();
+                    final Player healTarget = findHealTarget();
                     if (healTarget != null)
                     {
                         handleHealerBehavior(healTarget);
@@ -221,7 +225,7 @@ public class SmartBotController implements Runnable {
 
                 if (role == SmartBotRole.BUFFER)
                 {
-                    final L2PcInstance buffTarget = findBuffTarget();
+                    final Player buffTarget = findBuffTarget();
                     if (buffTarget != null)
                     {
                         handleBufferBehavior(buffTarget);
@@ -232,7 +236,7 @@ public class SmartBotController implements Runnable {
                     return;
                 }
 
-                final L2MonsterInstance assistedMob = getAssistMob(assistTarget);
+                final Monster assistedMob = getAssistMob(assistTarget);
                 if (assistedMob != null)
                 {
                     handleCombat(assistedMob);
@@ -248,7 +252,7 @@ public class SmartBotController implements Runnable {
              */
             if (role == SmartBotRole.HEALER)
             {
-                final L2PcInstance deadAssistTarget = getAssistTargetAllowDead();
+                final Player deadAssistTarget = getAssistTargetAllowDead();
                 if (deadAssistTarget != null && deadAssistTarget.isDead())
                 {
                     handleResurrectionBehavior(deadAssistTarget);
@@ -265,7 +269,7 @@ public class SmartBotController implements Runnable {
              */
             if (data.isAttackMode())
             {
-                final L2MonsterInstance mob = getCombatTargetOrFindNew(Config.BOT_ATTACK_SEARCH_RADIUS);
+                final Monster mob = getCombatTargetOrFindNew(SmartBotConfig.BOT_ATTACK_SEARCH_RADIUS);
                 if (mob != null)
                 {
                     handleCombat(mob);
@@ -278,14 +282,14 @@ public class SmartBotController implements Runnable {
              */
             if (role == SmartBotRole.HEALER)
             {
-                final L2PcInstance healTarget = findHealTarget();
+                final Player healTarget = findHealTarget();
                 if (healTarget != null)
                 {
                     handleHealerBehavior(healTarget);
                     return;
                 }
 
-                final L2PcInstance resurrectionTarget = findResurrectionTarget();
+                final Player resurrectionTarget = findResurrectionTarget();
                 if (resurrectionTarget != null)
                 {
                     handleResurrectionBehavior(resurrectionTarget);
@@ -305,13 +309,13 @@ public class SmartBotController implements Runnable {
         }
     }
 
-    private void handleCombat(L2MonsterInstance mob) {
+    private void handleCombat(Monster mob) {
         final SmartBotRole role = getRole();
         final SmartBotPreset preset = getPreset();
 
         if (role == SmartBotRole.BUFFER)
         {
-            final L2PcInstance buffTarget = findBuffTarget();
+            final Player buffTarget = findBuffTarget();
             if (buffTarget != null)
             {
                 handleBufferBehavior(buffTarget);
@@ -328,7 +332,7 @@ public class SmartBotController implements Runnable {
         }
 
         if (role == SmartBotRole.HEALER) {
-            final L2PcInstance healTarget = findHealTarget();
+            final Player healTarget = findHealTarget();
             if (healTarget != null)
             {
                 handleHealerBehavior(healTarget);
@@ -354,7 +358,7 @@ public class SmartBotController implements Runnable {
         handleFighterBehavior(mob);
     }
 
-    private void handleFighterBehavior(L2MonsterInstance mob) {
+    private void handleFighterBehavior(Monster mob) {
         if (mob == null || mob.isDead()) {
             bot.setTarget(null);
             idleBot();
@@ -368,17 +372,17 @@ public class SmartBotController implements Runnable {
             return;
         }
 
-        if (!bot.isInsideRadius(mob, data.getMeleeAttackRange() + 20, true, false)) {
-            bot.getAI().setIntention(CtrlIntention.AI_INTENTION_ATTACK, mob);
+        if (!bot.isInsideRadius2D(mob, data.getMeleeAttackRange() + 20)) {
+            bot.getAI().setIntentionAttack(mob);
             return;
         }
 
         if (!bot.isAttackingNow() && !bot.isCastingNow()) {
-            bot.getAI().setIntention(CtrlIntention.AI_INTENTION_ATTACK, mob);
+            bot.getAI().setIntentionAttack(mob);
         }
     }
 
-    private void handleMageBehavior(L2MonsterInstance mob) {
+    private void handleMageBehavior(Monster mob) {
         if (mob == null || mob.isDead()) {
             bot.setTarget(null);
             idleBot();
@@ -391,16 +395,16 @@ public class SmartBotController implements Runnable {
             return;
         }
 
-        final L2Skill nuke = getFirstKnownSkill(MAGE_ATTACK_SKILLS);
+        final Skill nuke = getFirstKnownSkill(MAGE_ATTACK_SKILLS);
         if (nuke != null) {
-            bot.useMagic(nuke, false, false, 0);
+            bot.useMagic(nuke, false, false);
             return;
         }
 
         handleFighterBehavior(mob);
     }
 
-    private void handleHealerBehavior(L2PcInstance healTarget)
+    private void handleHealerBehavior(Player healTarget)
     {
         if (healTarget == null || healTarget.isDead())
         {
@@ -410,9 +414,9 @@ public class SmartBotController implements Runnable {
 
         bot.setTarget(healTarget);
 
-        if (!bot.isInsideRadius(healTarget, Config.BOT_HEAL_RANGE, true, false))
+        if (!bot.isInsideRadius2D(healTarget, SmartBotConfig.BOT_HEAL_RANGE))
         {
-            bot.getAI().setIntention(CtrlIntention.AI_INTENTION_FOLLOW, healTarget);
+            bot.getAI().setIntentionFollow(healTarget);
             return;
         }
 
@@ -426,29 +430,29 @@ public class SmartBotController implements Runnable {
             bot.abortAttack();
         }
 
-        final L2Skill heal = getFirstKnownSkill(HEAL_SKILLS);
+        final Skill heal = getFirstKnownSkill(HEAL_SKILLS);
         if (heal != null)
         {
-            bot.useMagic(heal, false, false, 0);
+            bot.useMagic(heal, false, false);
             return;
         }
 
         handleFollow(healTarget);
     }
 
-    private L2PcInstance findHealTarget()
+    private Player findHealTarget()
     {
-        L2PcInstance best = null;
+        Player best = null;
         double bestHpPercent = 100.0;
 
-        final L2PcInstance assistTarget = getAssistTarget();
+        final Player assistTarget = getAssistTarget();
         if (isValidHealCandidate(assistTarget))
         {
             best = assistTarget;
             bestHpPercent = getHpPercent(assistTarget);
         }
 
-        final L2PcInstance followTarget = getFollowTarget();
+        final Player followTarget = getFollowTarget();
         if (isValidHealCandidate(followTarget))
         {
             final double hpPercent = getHpPercent(followTarget);
@@ -461,9 +465,9 @@ public class SmartBotController implements Runnable {
 
         if (bot.isInParty())
         {
-            final L2Party party = bot.getParty();
+            final Party party = bot.getParty();
 
-            for (L2PcInstance member : party.getPartyMembers())
+            for (Player member : party.getMembers())
             {
                 if (!isValidHealCandidate(member))
                 {
@@ -482,7 +486,7 @@ public class SmartBotController implements Runnable {
         return best;
     }
 
-    private boolean isValidHealCandidate(L2PcInstance player)
+    private boolean isValidHealCandidate(Player player)
     {
         if (player == null || player.isDead() || player.isTeleporting())
         {
@@ -491,13 +495,13 @@ public class SmartBotController implements Runnable {
 
         if (player == bot)
         {
-            return getHpPercent(bot) <= Config.BOT_HEAL_HP_PERCENT;
+            return getHpPercent(bot) <= SmartBotConfig.BOT_HEAL_HP_PERCENT;
         }
 
         if (!bot.isInParty())
         {
-            final L2PcInstance followTarget = getFollowTarget();
-            final L2PcInstance assistTarget = getAssistTarget();
+            final Player followTarget = getFollowTarget();
+            final Player assistTarget = getAssistTarget();
 
             if (player != followTarget && player != assistTarget)
             {
@@ -509,10 +513,10 @@ public class SmartBotController implements Runnable {
             return false;
         }
 
-        return getHpPercent(player) <= Config.BOT_HEAL_HP_PERCENT;
+        return getHpPercent(player) <= SmartBotConfig.BOT_HEAL_HP_PERCENT;
     }
 
-    private double getHpPercent(L2PcInstance player) {
+    private double getHpPercent(Player player) {
         if (player == null || player.getMaxHp() <= 0) {
             return 100.0;
         }
@@ -520,14 +524,14 @@ public class SmartBotController implements Runnable {
         return (player.getCurrentHp() * 100.0) / player.getMaxHp();
     }
 
-    private L2Skill getFirstKnownSkill(int[] skillIds) {
+    private Skill getFirstKnownSkill(int[] skillIds) {
         for (int skillId : skillIds) {
             final int level = bot.getSkillLevel(skillId);
             if (level <= 0) {
                 continue;
             }
 
-            final L2Skill skill = SkillTable.getInstance().getInfo(skillId, level);
+            final Skill skill = SkillData.getInstance().getSkill(skillId, level);
             if (skill != null) {
                 return skill;
             }
@@ -536,7 +540,7 @@ public class SmartBotController implements Runnable {
         return null;
     }
 
-    private void handleTankBehavior(L2MonsterInstance mob)
+    private void handleTankBehavior(Monster mob)
     {
         if (mob == null || mob.isDead())
         {
@@ -563,7 +567,7 @@ public class SmartBotController implements Runnable {
         handleFighterBehavior(mob);
     }
 
-    private boolean tryUseTankAggro(L2MonsterInstance mob)
+    private boolean tryUseTankAggro(Monster mob)
     {
         if (mob == null || mob.isDead())
         {
@@ -576,7 +580,7 @@ public class SmartBotController implements Runnable {
             return false;
         }
 
-        final L2Skill aggro = getFirstKnownSkill(TANK_AGGRO_SKILLS);
+        final Skill aggro = getFirstKnownSkill(TANK_AGGRO_SKILLS);
         if (aggro == null)
         {
             return false;
@@ -588,9 +592,9 @@ public class SmartBotController implements Runnable {
             castRange = 400;
         }
 
-        if (!bot.isInsideRadius(mob, castRange + 50, true, false))
+        if (!bot.isInsideRadius2D(mob, castRange + 50))
         {
-            bot.getAI().setIntention(CtrlIntention.AI_INTENTION_ATTACK, mob);
+            bot.getAI().setIntentionAttack(mob);
             return false;
         }
 
@@ -600,12 +604,12 @@ public class SmartBotController implements Runnable {
         }
 
         bot.setTarget(mob);
-        bot.useMagic(aggro, false, false, 0);
+        bot.useMagic(aggro, false, false);
         lastTankAggroAt = now;
         return true;
     }
 
-    private void handleDaggerBehavior(L2MonsterInstance mob)
+    private void handleDaggerBehavior(Monster mob)
     {
         if (mob == null || mob.isDead())
         {
@@ -629,7 +633,7 @@ public class SmartBotController implements Runnable {
         handleFighterBehavior(mob);
     }
 
-    private boolean tryUseDaggerSkill(L2MonsterInstance mob)
+    private boolean tryUseDaggerSkill(Monster mob)
     {
         if (mob == null || mob.isDead())
         {
@@ -642,7 +646,7 @@ public class SmartBotController implements Runnable {
             return false;
         }
 
-        final L2Skill daggerSkill = getFirstKnownSkill(DAGGER_ATTACK_SKILLS);
+        final Skill daggerSkill = getFirstKnownSkill(DAGGER_ATTACK_SKILLS);
         if (daggerSkill == null)
         {
             return false;
@@ -654,9 +658,9 @@ public class SmartBotController implements Runnable {
             castRange = data.getMeleeAttackRange() + 20;
         }
 
-        if (!bot.isInsideRadius(mob, castRange + 30, true, false))
+        if (!bot.isInsideRadius2D(mob, castRange + 30))
         {
-            bot.getAI().setIntention(CtrlIntention.AI_INTENTION_ATTACK, mob);
+            bot.getAI().setIntentionAttack(mob);
             return false;
         }
 
@@ -666,12 +670,12 @@ public class SmartBotController implements Runnable {
         }
 
         bot.setTarget(mob);
-        bot.useMagic(daggerSkill, false, false, 0);
+        bot.useMagic(daggerSkill, false, false);
         lastDaggerSkillAt = now;
         return true;
     }
 
-    private void handleBufferBehavior(L2PcInstance target)
+    private void handleBufferBehavior(Player target)
     {
         if (target == null || target.isDead() || target.isTeleporting())
         {
@@ -681,9 +685,9 @@ public class SmartBotController implements Runnable {
 
         bot.setTarget(target);
 
-        if (!bot.isInsideRadius(target, Config.BOT_HEAL_RANGE, true, false))
+        if (!bot.isInsideRadius2D(target, SmartBotConfig.BOT_HEAL_RANGE))
         {
-            bot.getAI().setIntention(CtrlIntention.AI_INTENTION_FOLLOW, target);
+            bot.getAI().setIntentionFollow(target);
             return;
         }
 
@@ -697,10 +701,10 @@ public class SmartBotController implements Runnable {
             bot.abortAttack();
         }
 
-        final L2Skill missingBuff = getMissingBuffFor(target);
+        final Skill missingBuff = getMissingBuffFor(target);
         if (missingBuff != null)
         {
-            bot.useMagic(missingBuff, false, false, 0);
+            bot.useMagic(missingBuff, false, false);
             return;
         }
 
@@ -708,7 +712,7 @@ public class SmartBotController implements Runnable {
         handleFollow(target);
     }
 
-    private L2PcInstance findBuffTarget()
+    private Player findBuffTarget()
     {
         final long now = System.currentTimeMillis();
         if ((now - lastBuffCheckAt) < BUFFER_RECHECK_INTERVAL_MS)
@@ -720,13 +724,13 @@ public class SmartBotController implements Runnable {
 
         if (!bot.isInParty())
         {
-            final L2PcInstance followTarget = getFollowTarget();
+            final Player followTarget = getFollowTarget();
             if (needsBuffs(followTarget))
             {
                 return followTarget;
             }
 
-            final L2PcInstance assistTarget = getAssistTarget();
+            final Player assistTarget = getAssistTarget();
             if (needsBuffs(assistTarget))
             {
                 return assistTarget;
@@ -735,13 +739,13 @@ public class SmartBotController implements Runnable {
             return null;
         }
 
-        final L2Party party = bot.getParty();
+        final Party party = bot.getParty();
         if (party == null)
         {
             return null;
         }
 
-        for (L2PcInstance member : party.getPartyMembers())
+        for (Player member : party.getMembers())
         {
             if (needsBuffs(member))
             {
@@ -752,7 +756,7 @@ public class SmartBotController implements Runnable {
         return null;
     }
 
-    private boolean needsBuffs(L2PcInstance player)
+    private boolean needsBuffs(Player player)
     {
         if (player == null || player.isDead() || player.isTeleporting())
         {
@@ -773,8 +777,8 @@ public class SmartBotController implements Runnable {
         }
         else
         {
-            final L2PcInstance followTarget = getFollowTarget();
-            final L2PcInstance assistTarget = getAssistTarget();
+            final Player followTarget = getFollowTarget();
+            final Player assistTarget = getAssistTarget();
 
             if (player != followTarget && player != assistTarget)
             {
@@ -785,7 +789,7 @@ public class SmartBotController implements Runnable {
         return getMissingBuffFor(player) != null;
     }
 
-    private L2Skill getMissingBuffFor(L2PcInstance target)
+    private Skill getMissingBuffFor(Player target)
     {
         if (target == null)
         {
@@ -813,7 +817,7 @@ public class SmartBotController implements Runnable {
             }
 
             final int castLevel = Math.min(skillLevel, knownLevel);
-            final L2Skill skill = SkillTable.getInstance().getInfo(skillId, castLevel);
+            final Skill skill = SkillData.getInstance().getSkill(skillId, castLevel);
             if (skill != null)
             {
                 return skill;
@@ -823,7 +827,7 @@ public class SmartBotController implements Runnable {
         return null;
     }
 
-    private boolean isMageBuffTarget(L2PcInstance target)
+    private boolean isMageBuffTarget(Player target)
     {
         if (target == null)
         {
@@ -833,7 +837,7 @@ public class SmartBotController implements Runnable {
         /*
          * If the target is one of our SmartBots, use its preset role.
          */
-        final SmartBotPreset preset = SmartBotPreset.fromClassId(target.getClassId().getId());
+        final SmartBotPreset preset = SmartBotPreset.fromClassId(target.getPlayerClass().getId());
         if (preset != null)
         {
             final SmartBotRole role = preset.getRole();
@@ -848,7 +852,7 @@ public class SmartBotController implements Runnable {
          * This is intentionally conservative:
          * unknown classes get fighter buffs.
          */
-        final int classId = target.getClassId().getId();
+        final int classId = target.getPlayerClass().getId();
 
         return switch (classId) {
             // Human mystics / wizards / clerics / bishop / prophet / necro / warlock
@@ -861,22 +865,17 @@ public class SmartBotController implements Runnable {
         };
     }
 
-    private boolean hasEffect(L2PcInstance player, int skillId)
+    private boolean hasEffect(Player player, int skillId)
     {
         if (player == null)
         {
             return false;
         }
 
-        if (player.getFirstEffect(skillId) != null)
-        {
-            return true;
-        }
-
-        return false;
+        return player.isAffectedBySkill(skillId);
     }
 
-    private boolean tryArcherStun(L2MonsterInstance mob)
+    private boolean tryArcherStun(Monster mob)
     {
         final SmartBotPreset preset = getPreset();
         if (preset != SmartBotPreset.ARCHER)
@@ -900,24 +899,24 @@ public class SmartBotController implements Runnable {
             return false;
         }
 
-        final L2Skill stun = getFirstKnownSkill(ARCHER_STUN_SKILLS);
+        final Skill stun = getFirstKnownSkill(ARCHER_STUN_SKILLS);
         if (stun == null)
         {
             return false;
         }
 
         bot.setTarget(mob);
-        bot.useMagic(stun, false, false, 0);
+        bot.useMagic(stun, false, false);
         lastArcherStunAt = now;
         return true;
     }
 
-    private L2PcInstance getFollowTarget() {
+    private Player getFollowTarget() {
         if (data.getFollowTargetObjId() <= 0) {
             return null;
         }
 
-        final L2PcInstance target = L2World.getInstance().getPlayer(data.getFollowTargetObjId());
+        final Player target = World.getPlayer(data.getFollowTargetObjId());
         if (target == null || target.isDead() || target.isTeleporting()) {
             return null;
         }
@@ -925,12 +924,12 @@ public class SmartBotController implements Runnable {
         return target;
     }
 
-    private L2PcInstance getAssistTarget() {
+    private Player getAssistTarget() {
         if (data.getAssistTargetObjId() <= 0) {
             return null;
         }
 
-        final L2PcInstance target = L2World.getInstance().getPlayer(data.getAssistTargetObjId());
+        final Player target = World.getPlayer(data.getAssistTargetObjId());
         if (target == null || target.isDead() || target.isTeleporting()) {
             return null;
         }
@@ -938,7 +937,7 @@ public class SmartBotController implements Runnable {
         return target;
     }
 
-    private void handleFollow(L2PcInstance target)
+    private void handleFollow(Player target)
     {
         if (target == null || target.isDead() || target.isTeleporting())
         {
@@ -974,45 +973,45 @@ public class SmartBotController implements Runnable {
             bot.abortAttack();
         }
 
-        if (!bot.isInsideRadius(target, Config.BOT_FOLLOW_DISTANCE, true, false))
+        if (!bot.isInsideRadius2D(target, SmartBotConfig.BOT_FOLLOW_DISTANCE))
         {
-            final Location loc = getFollowLocationNearTarget(target, Config.BOT_FOLLOW_DISTANCE);
-            bot.getAI().setIntention(CtrlIntention.AI_INTENTION_MOVE_TO, loc);
+            final Location loc = getFollowLocationNearTarget(target, SmartBotConfig.BOT_FOLLOW_DISTANCE);
+            bot.getAI().setIntentionMoveTo(loc);
             return;
         }
 
         if (!bot.isMoving())
         {
-            bot.getAI().setIntention(CtrlIntention.AI_INTENTION_IDLE);
+            bot.getAI().setIntentionIdle();
         }
     }
 
-    private L2MonsterInstance getAssistMob(L2PcInstance assistTarget) {
+    private Monster getAssistMob(Player assistTarget) {
         if (assistTarget == null) {
             return null;
         }
 
-        if (!(assistTarget.getTarget() instanceof L2MonsterInstance)) {
+        if (!(assistTarget.getTarget() instanceof Monster)) {
             return null;
         }
 
-        final L2MonsterInstance mob = (L2MonsterInstance) assistTarget.getTarget();
+        final Monster mob = (Monster) assistTarget.getTarget();
         if (mob.isDead()) {
             return null;
         }
 
-        if (!bot.isInsideRadius(mob, Config.BOT_ATTACK_SEARCH_RADIUS, true, false)) {
+        if (!bot.isInsideRadius2D(mob, SmartBotConfig.BOT_ATTACK_SEARCH_RADIUS)) {
             return null;
         }
 
         return mob;
     }
 
-    private L2MonsterInstance getCombatTargetOrFindNew(int radius) {
-        final L2Object currentTarget = bot.getTarget();
-        if (currentTarget instanceof L2MonsterInstance) {
-            final L2MonsterInstance currentMob = (L2MonsterInstance) currentTarget;
-            if (!currentMob.isDead() && bot.isInsideRadius(currentMob, radius, true, false)) {
+    private Monster getCombatTargetOrFindNew(int radius) {
+        final WorldObject currentTarget = bot.getTarget();
+        if (currentTarget instanceof Monster) {
+            final Monster currentMob = (Monster) currentTarget;
+            if (!currentMob.isDead() && bot.isInsideRadius2D(currentMob, radius)) {
                 return currentMob;
             }
         }
@@ -1020,28 +1019,18 @@ public class SmartBotController implements Runnable {
         return findNearestAttackableMob(radius);
     }
 
-    private L2MonsterInstance findNearestAttackableMob(int radius) {
-        L2MonsterInstance best = null;
+    private Monster findNearestAttackableMob(int radius) {
+        Monster best = null;
         double bestDistance = Double.MAX_VALUE;
-        final double maxDistSq = radius * radius;
 
-        final Collection<?> visible = L2World.getInstance().getVisibleObjects(bot, radius);
+        final List<Monster> visible = World.getVisibleObjectsInRange(bot, Monster.class, radius);
 
-        for (Object obj : visible) {
-            if (!(obj instanceof L2MonsterInstance)) {
-                continue;
-            }
-
-            final L2MonsterInstance mob = (L2MonsterInstance) obj;
+        for (Monster mob : visible) {
             if (mob.isDead()) {
                 continue;
             }
 
-            final double dist = bot.getDistanceSq(mob);
-            if (dist > maxDistSq) {
-                continue;
-            }
-
+            final double dist = bot.calculateDistance2D(mob);
             if (dist < bestDistance) {
                 bestDistance = dist;
                 best = mob;
@@ -1057,7 +1046,7 @@ public class SmartBotController implements Runnable {
         }
 
         bot.setTarget(null);
-        bot.getAI().setIntention(CtrlIntention.AI_INTENTION_IDLE);
+        bot.getAI().setIntentionIdle();
     }
 
     private SmartBotPreset getPreset() {
@@ -1070,7 +1059,7 @@ public class SmartBotController implements Runnable {
     }
 
     private void useManaPotionIfNeeded() {
-        if (Config.BOT_MANA_POTION_ITEM_ID <= 0) {
+        if (SmartBotConfig.BOT_MANA_POTION_ITEM_ID <= 0) {
             return;
         }
 
@@ -1079,28 +1068,28 @@ public class SmartBotController implements Runnable {
         }
 
         final double mpPercent = (bot.getCurrentMp() * 100.0) / bot.getMaxMp();
-        if (mpPercent > Config.BOT_MANA_POTION_MP_PERCENT) {
+        if (mpPercent > SmartBotConfig.BOT_MANA_POTION_MP_PERCENT) {
             return;
         }
 
-        final L2ItemInstance item = bot.getInventory().getItemByItemId(Config.BOT_MANA_POTION_ITEM_ID);
+        final Item item = bot.getInventory().getItemByItemId(SmartBotConfig.BOT_MANA_POTION_ITEM_ID);
         if (item == null || item.getCount() <= 0) {
             return;
         }
 
-        if (!(item.getItem() instanceof L2EtcItem)) {
+        if (!(item.getTemplate() instanceof EtcItem)) {
             return;
         }
 
-        final IItemHandler handler = ItemHandler.getInstance().getHandler((L2EtcItem) item.getItem());
+        final IItemHandler handler = ItemHandler.getInstance().getHandler((EtcItem) item.getTemplate());
         if (handler == null) {
             return;
         }
 
-        handler.useItem(bot, item);
+        handler.onItemUse(bot, item, false);
     }
 
-    private void handleResurrectionBehavior(L2PcInstance target)
+    private void handleResurrectionBehavior(Player target)
     {
         if (target == null || !target.isDead() || target.isTeleporting())
         {
@@ -1114,10 +1103,10 @@ public class SmartBotController implements Runnable {
 
         /*
          * Do not try to AI-follow dead players.
-         * Some C4 cores don't handle following dead L2PcInstance targets correctly.
+         * Some cores don't handle following dead Player targets correctly.
          * If the corpse is not already in range, let normal follow/assist logic run.
          */
-        if (!bot.isInsideRadius(target, Config.BOT_HEAL_RANGE, true, false))
+        if (!bot.isInsideRadius2D(target, SmartBotConfig.BOT_HEAL_RANGE))
         {
             return;
         }
@@ -1134,22 +1123,22 @@ public class SmartBotController implements Runnable {
 
         bot.setTarget(target);
 
-        final L2Skill resurrection = getFirstKnownSkill(RESURRECT_SKILLS);
+        final Skill resurrection = getFirstKnownSkill(RESURRECT_SKILLS);
         if (resurrection != null)
         {
-            bot.useMagic(resurrection, false, false, 0);
+            bot.useMagic(resurrection, false, false);
         }
     }
 
-    private L2PcInstance findResurrectionTarget()
+    private Player findResurrectionTarget()
     {
-        final L2PcInstance assistTarget = getAssistTargetAllowDead();
+        final Player assistTarget = getAssistTargetAllowDead();
         if (needsResurrection(assistTarget))
         {
             return assistTarget;
         }
 
-        final L2PcInstance followTarget = getFollowTargetAllowDead();
+        final Player followTarget = getFollowTargetAllowDead();
         if (needsResurrection(followTarget))
         {
             return followTarget;
@@ -1157,9 +1146,9 @@ public class SmartBotController implements Runnable {
 
         if (bot.isInParty())
         {
-            final L2Party party = bot.getParty();
+            final Party party = bot.getParty();
 
-            for (L2PcInstance member : party.getPartyMembers())
+            for (Player member : party.getMembers())
             {
                 if (needsResurrection(member))
                 {
@@ -1171,7 +1160,7 @@ public class SmartBotController implements Runnable {
         return null;
     }
 
-    private boolean needsResurrection(L2PcInstance player)
+    private boolean needsResurrection(Player player)
     {
         if (player == null || player == bot)
         {
@@ -1203,17 +1192,17 @@ public class SmartBotController implements Runnable {
             }
         }
 
-        return bot.isInsideRadius(player, Config.BOT_HEAL_RANGE, true, false);
+        return bot.isInsideRadius2D(player, SmartBotConfig.BOT_HEAL_RANGE);
     }
 
-    private L2PcInstance getFollowTargetAllowDead()
+    private Player getFollowTargetAllowDead()
     {
         if (data.getFollowTargetObjId() <= 0)
         {
             return null;
         }
 
-        final L2PcInstance target = L2World.getInstance().getPlayer(data.getFollowTargetObjId());
+        final Player target = World.getPlayer(data.getFollowTargetObjId());
         if (target == null || target.isTeleporting())
         {
             return null;
@@ -1222,14 +1211,14 @@ public class SmartBotController implements Runnable {
         return target;
     }
 
-    private L2PcInstance getAssistTargetAllowDead()
+    private Player getAssistTargetAllowDead()
     {
         if (data.getAssistTargetObjId() <= 0)
         {
             return null;
         }
 
-        final L2PcInstance target = L2World.getInstance().getPlayer(data.getAssistTargetObjId());
+        final Player target = World.getPlayer(data.getAssistTargetObjId());
         if (target == null || target.isTeleporting())
         {
             return null;
@@ -1238,7 +1227,7 @@ public class SmartBotController implements Runnable {
         return target;
     }
 
-    private Location getFollowLocationNearTarget(L2PcInstance target, int followDistance)
+    private Location getFollowLocationNearTarget(Player target, int followDistance)
     {
         final double dx = bot.getX() - target.getX();
         final double dy = bot.getY() - target.getY();
@@ -1266,20 +1255,13 @@ public class SmartBotController implements Runnable {
             return;
         }
 
-        final CreatureSay cs = new CreatureSay(bot.getObjectId(), Say2.ALL, bot.getName(), text);
+        final CreatureSay cs = new CreatureSay(bot, ChatType.GENERAL, bot.getName(), text);
 
-        for (L2PcInstance player : bot.getKnownList().getKnownPlayers().values())
-        {
-            if (player != null && bot.isInsideRadius(player, 1250, false, true))
-            {
-                player.sendPacket(cs);
-            }
-        }
-
+        bot.broadcastPacket(cs);
         bot.sendPacket(cs);
     }
 
-    public void requestBuff(L2PcInstance target)
+    public void requestBuff(Player target)
     {
         if (target == null)
         {
@@ -1289,14 +1271,14 @@ public class SmartBotController implements Runnable {
         requestedBuffTargetObjId = target.getObjectId();
     }
 
-    private L2PcInstance getRequestedBuffTarget()
+    private Player getRequestedBuffTarget()
     {
         if (requestedBuffTargetObjId <= 0)
         {
             return null;
         }
 
-        final L2PcInstance target = L2World.getInstance().getPlayer(requestedBuffTargetObjId);
+        final Player target = World.getPlayer(requestedBuffTargetObjId);
         if (target == null || target.isDead() || target.isTeleporting())
         {
             requestedBuffTargetObjId = 0;

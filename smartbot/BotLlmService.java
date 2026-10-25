@@ -1,4 +1,4 @@
-package net.sf.l2j.gameserver.smartbot;
+package org.l2jmobius.gameserver.smartbot;
 
 import java.io.IOException;
 import java.net.URI;
@@ -15,22 +15,23 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import net.sf.l2j.Config;
-import net.sf.l2j.gameserver.ThreadPoolManager;
-import net.sf.l2j.gameserver.ai.CtrlIntention;
-import net.sf.l2j.gameserver.network.serverpackets.AskJoinParty;
-import net.sf.l2j.gameserver.network.serverpackets.SystemMessage;
-import net.sf.l2j.gameserver.smartbot.model.BotMemory;
-import net.sf.l2j.gameserver.model.L2Party;
-import net.sf.l2j.gameserver.model.L2World;
-import net.sf.l2j.gameserver.model.actor.instance.L2MonsterInstance;
-import net.sf.l2j.gameserver.model.actor.instance.L2PcInstance;
-import net.sf.l2j.gameserver.network.clientpackets.Say2;
-import net.sf.l2j.gameserver.network.serverpackets.CreatureSay;
-import net.sf.l2j.gameserver.network.serverpackets.JoinParty;
-import net.sf.l2j.gameserver.smartbot.model.SmartBotKnowledge;
-import net.sf.l2j.gameserver.smartbot.model.SmartBotRole;
-import net.sf.l2j.util.Rnd;
+import org.l2jmobius.commons.threads.ThreadPool;
+import org.l2jmobius.commons.util.Rnd;
+import org.l2jmobius.gameserver.config.custom.SmartBotConfig;
+import org.l2jmobius.gameserver.entity.World;
+import org.l2jmobius.gameserver.entity.actor.Player;
+import org.l2jmobius.gameserver.entity.actor.instance.Monster;
+import org.l2jmobius.gameserver.entity.groups.Party;
+import org.l2jmobius.gameserver.entity.groups.PartyDistributionType;
+import org.l2jmobius.gameserver.network.SystemMessageId;
+import org.l2jmobius.gameserver.network.enums.ChatType;
+import org.l2jmobius.gameserver.network.serverpackets.AskJoinParty;
+import org.l2jmobius.gameserver.network.serverpackets.CreatureSay;
+import org.l2jmobius.gameserver.network.serverpackets.JoinParty;
+import org.l2jmobius.gameserver.network.serverpackets.SystemMessage;
+import org.l2jmobius.gameserver.smartbot.model.BotMemory;
+import org.l2jmobius.gameserver.smartbot.model.SmartBotKnowledge;
+import org.l2jmobius.gameserver.smartbot.model.SmartBotRole;
 
 public class BotLlmService
 {
@@ -50,7 +51,7 @@ public class BotLlmService
                 .build();
     }
 
-    public void handlePlayerAllChat(L2PcInstance speaker, String rawMessage)
+    public void handlePlayerAllChat(Player speaker, String rawMessage)
     {
         if (speaker == null || rawMessage == null)
         {
@@ -72,7 +73,7 @@ public class BotLlmService
             return;
         }
 
-        final L2PcInstance bot = command == ChatCommand.BUFF
+        final Player bot = command == ChatCommand.BUFF
                 ? selectBufferForMessage(speaker, message)
                 : selectBotForMessage(speaker, message);
         if (bot == null)
@@ -87,9 +88,9 @@ public class BotLlmService
         {
             case FOLLOW:
             {
-                SmartBotManager.INSTANCE.setAttackMode(bot.getObjectId(), false);
-                SmartBotManager.INSTANCE.clearAssistTarget(bot.getObjectId());
-                SmartBotManager.INSTANCE.setFollowTarget(bot.getObjectId(), speaker.getObjectId());
+                SmartBotManager.getInstance().setAttackMode(bot.getObjectId(), false);
+                SmartBotManager.getInstance().clearAssistTarget(bot.getObjectId());
+                SmartBotManager.getInstance().setFollowTarget(bot.getObjectId(), speaker.getObjectId());
 
                 final String reply = generateCommandReply(bot, speaker, "follow", "success");
                 if (!reply.isBlank())
@@ -123,9 +124,9 @@ public class BotLlmService
 
             case ASSIST:
             {
-                SmartBotManager.INSTANCE.clearFollowTarget(bot.getObjectId());
-                SmartBotManager.INSTANCE.setAttackMode(bot.getObjectId(), false);
-                SmartBotManager.INSTANCE.setAssistTarget(bot.getObjectId(), speaker.getObjectId());
+                SmartBotManager.getInstance().clearFollowTarget(bot.getObjectId());
+                SmartBotManager.getInstance().setAttackMode(bot.getObjectId(), false);
+                SmartBotManager.getInstance().setAssistTarget(bot.getObjectId(), speaker.getObjectId());
 
                 final String reply = generateCommandReply(bot, speaker, "assist", "success");
                 if (!reply.isBlank())
@@ -138,8 +139,8 @@ public class BotLlmService
 
             case ATTACK:
             {
-                SmartBotManager.INSTANCE.clearFollowTarget(bot.getObjectId());
-                SmartBotManager.INSTANCE.setAttackMode(bot.getObjectId(), true);
+                SmartBotManager.getInstance().clearFollowTarget(bot.getObjectId());
+                SmartBotManager.getInstance().setAttackMode(bot.getObjectId(), true);
 
                 final String reply;
 
@@ -164,7 +165,7 @@ public class BotLlmService
             {
                 final String reply;
 
-                if (SmartBotManager.INSTANCE.requestBuff(bot.getObjectId(), speaker))
+                if (SmartBotManager.getInstance().requestBuff(bot.getObjectId(), speaker))
                 {
                     reply = generateCommandReply(bot, speaker, "buff", "success");
                 }
@@ -183,7 +184,7 @@ public class BotLlmService
 
             case STOP:
             {
-                SmartBotManager.INSTANCE.stopBotActions(bot.getObjectId());
+                SmartBotManager.getInstance().stopBotActions(bot.getObjectId());
 
                 final String reply = generateCommandReply(bot, speaker, "stop", "success");
                 if (!reply.isBlank())
@@ -220,24 +221,26 @@ public class BotLlmService
         }
     }
 
-    public void handlePartyRequest(L2PcInstance requestor, L2PcInstance target, int itemDistribution)
+    /**
+     * Called when a real player invites a managed bot to their party.<br>
+     * Since the bot has no client to answer an AskJoinParty dialog, this manually
+     * replays what the engine's RequestAnswerJoinParty handler does on accept.
+     * @param itemDistribution the loot distribution type id sent by the client's RequestJoinParty packet
+     */
+    public void handlePartyRequest(Player requestor, Player target, int itemDistribution)
     {
         if (requestor == null || target == null)
         {
             return;
         }
 
-        if (!SmartBotManager.INSTANCE.isBot(target))
+        if (!SmartBotManager.getInstance().isBot(target))
         {
             return;
         }
 
-        if (SmartBotManager.INSTANCE.isBot(target))
-        {
-            target.setLootInvitation(-1);
-            target.setActiveRequester(null);
-            target.onTransactionResponse();
-        }
+        target.setActiveRequester(null);
+        target.onTransactionResponse();
 
         final BotMemory memory = getMemory(target);
         memory.add(requestor.getName() + ": party invite");
@@ -266,83 +269,75 @@ public class BotLlmService
          */
         requestor.sendMessage("You invited " + target.getName() + " to party.");
 
-        final int loot = Math.max(itemDistribution, 0);
+        final PartyDistributionType distributionType = PartyDistributionType.findById(itemDistribution);
 
-        ThreadPoolManager.getInstance().scheduleGeneral(new Runnable()
+        ThreadPool.schedule(() ->
         {
-            @Override
-            public void run()
+            try
             {
-                try
+                if (!SmartBotManager.getInstance().isBot(target))
                 {
-
-                    if (!SmartBotManager.INSTANCE.isBot(target))
-                    {
-                        return;
-                    }
-
-                    if (target.isDead() || target.isTeleporting())
-                    {
-                        return;
-                    }
-
-                    if (target.isInParty())
-                    {
-                        return;
-                    }
-
-                    if (!requestor.isOnline() || requestor.isDead() || requestor.isTeleporting())
-                    {
-                        return;
-                    }
-
-                    if (!requestor.isInParty())
-                    {
-                        requestor.setLootInvitation(loot);
-                        requestor.setParty(new L2Party(requestor));
-                    }
-                    else
-                    {
-                        if (!requestor.getParty().isLeader(requestor))
-                        {
-                            requestor.sendPacket(new SystemMessage(SystemMessage.ONLY_LEADER_CAN_INVITE));
-                            return;
-                        }
-
-                        if (requestor.getParty().getMemberCount() >= 9)
-                        {
-                            requestor.sendPacket(new SystemMessage(SystemMessage.PARTY_FULL));
-                            return;
-                        }
-                    }
-
-                    target.joinParty(requestor.getParty());
-
-                    requestor.setLootInvitation(-1);
-                    target.setLootInvitation(-1);
-
-                    requestor.onTransactionResponse();
-                    target.onTransactionResponse();
-
-                    requestor.setActiveRequester(null);
-                    target.setActiveRequester(null);
-
-                    requestor.sendPacket(new JoinParty(1));
+                    return;
                 }
-                catch (Exception e)
+
+                if (target.isDead() || target.isTeleporting())
                 {
-                    e.printStackTrace();
+                    return;
                 }
+
+                if (target.isInParty())
+                {
+                    return;
+                }
+
+                if (!requestor.isOnline() || requestor.isDead() || requestor.isTeleporting())
+                {
+                    return;
+                }
+
+                if (!requestor.isInParty())
+                {
+                    requestor.setPartyDistributionType(distributionType != null ? distributionType : PartyDistributionType.FINDERS_KEEPERS);
+                    requestor.setParty(new Party(requestor, requestor.getPartyDistributionType()));
+                }
+                else
+                {
+                    if (!requestor.getParty().isLeader(requestor))
+                    {
+                        requestor.sendPacket(SystemMessageId.ONLY_THE_LEADER_CAN_GIVE_OUT_INVITATIONS);
+                        return;
+                    }
+
+                    if (requestor.getParty().getMemberCount() >= 9)
+                    {
+                        requestor.sendPacket(new SystemMessage(SystemMessageId.THE_PARTY_IS_FULL));
+                        return;
+                    }
+                }
+
+                target.joinParty(requestor.getParty());
+
+                requestor.onTransactionResponse();
+                target.onTransactionResponse();
+
+                requestor.setActiveRequester(null);
+                target.setActiveRequester(null);
+
+                requestor.sendPacket(new JoinParty(1));
+            }
+            catch (Exception e)
+            {
+                e.printStackTrace();
             }
         }, Rnd.get(900, 2200));
 
     }
 
-    private L2PcInstance selectBotForMessage(L2PcInstance speaker, String rawMessage)
+    private Player selectBotForMessage(Player speaker, String rawMessage)
     {
         final String normalized = normalize(rawMessage);
 
-        final L2PcInstance namedBot = findBotByNameMention(speaker, normalized);
+        final Player namedBot = findBotByNameMention(speaker, normalized);
         if (namedBot != null)
         {
             return namedBot;
@@ -351,21 +346,20 @@ public class BotLlmService
         return findNearestNearbyBot(speaker);
     }
 
-    private L2PcInstance findBotByNameMention(L2PcInstance speaker, String normalizedMessage)
+    private Player findBotByNameMention(Player speaker, String normalizedMessage)
     {
-        L2PcInstance best = null;
+        Player best = null;
         double bestDistance = Double.MAX_VALUE;
-        final double maxDistSq = Config.BOT_CHAT_RADIUS * Config.BOT_CHAT_RADIUS;
 
-        for (L2PcInstance bot : SmartBotManager.INSTANCE.getSpawnedBots())
+        for (Player bot : SmartBotManager.getInstance().getSpawnedBots())
         {
             if (bot == null || bot.isDead())
             {
                 continue;
             }
 
-            final double distance = speaker.getDistanceSq(bot);
-            if (distance > maxDistSq)
+            final double distance = speaker.calculateDistance2D(bot);
+            if (distance > SmartBotConfig.BOT_CHAT_RADIUS)
             {
                 continue;
             }
@@ -386,21 +380,20 @@ public class BotLlmService
         return best;
     }
 
-    private L2PcInstance findNearestNearbyBot(L2PcInstance speaker)
+    private Player findNearestNearbyBot(Player speaker)
     {
-        L2PcInstance best = null;
+        Player best = null;
         double bestDistance = Double.MAX_VALUE;
-        final double maxDistSq = Config.BOT_CHAT_RADIUS * Config.BOT_CHAT_RADIUS;
 
-        for (L2PcInstance bot : SmartBotManager.INSTANCE.getSpawnedBots())
+        for (Player bot : SmartBotManager.getInstance().getSpawnedBots())
         {
             if (bot == null || bot.isDead())
             {
                 continue;
             }
 
-            final double distance = speaker.getDistanceSq(bot);
-            if (distance > maxDistSq)
+            final double distance = speaker.calculateDistance2D(bot);
+            if (distance > SmartBotConfig.BOT_CHAT_RADIUS)
             {
                 continue;
             }
@@ -452,46 +445,34 @@ public class BotLlmService
         return ChatCommand.NONE;
     }
 
-    private boolean commandAttackNearestMob(L2PcInstance bot)
+    private boolean commandAttackNearestMob(Player bot)
     {
-        final L2MonsterInstance mob = findNearestAttackableMob(bot, Config.BOT_ATTACK_SEARCH_RADIUS);
+        final Monster mob = findNearestAttackableMob(bot, SmartBotConfig.BOT_ATTACK_SEARCH_RADIUS);
         if (mob == null)
         {
             return false;
         }
 
         bot.setTarget(mob);
-        bot.getAI().setIntention(CtrlIntention.AI_INTENTION_ATTACK, mob);
+        bot.getAI().setIntentionAttack(mob);
         return true;
     }
 
-    private L2MonsterInstance findNearestAttackableMob(L2PcInstance bot, int radius)
+    private Monster findNearestAttackableMob(Player bot, int radius)
     {
-        L2MonsterInstance best = null;
+        Monster best = null;
         double bestDistance = Double.MAX_VALUE;
-        final double maxDistSq = radius * radius;
 
-        final Collection<?> visible = L2World.getInstance().getVisibleObjects(bot, radius);
+        final List<Monster> visible = World.getVisibleObjectsInRange(bot, Monster.class, radius);
 
-        for (Object obj : visible)
+        for (Monster mob : visible)
         {
-            if (!(obj instanceof L2MonsterInstance))
-            {
-                continue;
-            }
-
-            final L2MonsterInstance mob = (L2MonsterInstance) obj;
             if (mob.isDead())
             {
                 continue;
             }
 
-            final double dist = bot.getDistanceSq(mob);
-            if (dist > maxDistSq)
-            {
-                continue;
-            }
-
+            final double dist = bot.calculateDistance2D(mob);
             if (dist < bestDistance)
             {
                 bestDistance = dist;
@@ -502,9 +483,19 @@ public class BotLlmService
         return best;
     }
 
-    private boolean sendPartyInviteToPlayer(L2PcInstance bot, L2PcInstance player)
+    /**
+     * Mirrors the engine's RequestJoinParty invite flow (see RequestJoinParty.addTargetToParty /
+     * createNewParty) so that the invited player's own client can complete the join normally
+     * through the regular RequestAnswerJoinParty handler.
+     */
+    private boolean sendPartyInviteToPlayer(Player bot, Player player)
     {
         if (bot == null || player == null)
+        {
+            return false;
+        }
+
+        if (player.isProcessingRequest())
         {
             return false;
         }
@@ -526,14 +517,10 @@ public class BotLlmService
                 return false;
             }
 
-            if (player.isProcessingRequest())
-            {
-                return false;
-            }
-
-            bot.setLootInvitation(bot.getParty().getLootDistribution());
             bot.onTransactionRequest(player);
-            player.sendPacket(new AskJoinParty(bot));
+            player.setActiveRequester(bot);
+            player.sendPacket(new AskJoinParty(bot.getName(), bot.getParty().getDistributionType()));
+            bot.getParty().setPendingInvitation(true);
             return true;
         }
 
@@ -542,31 +529,27 @@ public class BotLlmService
             return false;
         }
 
-        if (player.isProcessingRequest())
-        {
-            return false;
-        }
-
-        bot.setLootInvitation(0);
+        bot.setPartyDistributionType(PartyDistributionType.FINDERS_KEEPERS);
         bot.onTransactionRequest(player);
-        player.sendPacket(new AskJoinParty(bot));
+        player.setActiveRequester(bot);
+        player.sendPacket(new AskJoinParty(bot.getName(), PartyDistributionType.FINDERS_KEEPERS));
         return true;
     }
 
-    private boolean canReply(L2PcInstance bot)
+    private boolean canReply(Player bot)
     {
         final long now = System.currentTimeMillis();
         final long last = lastReplyAt.getOrDefault(bot.getObjectId(), 0L);
-        return (now - last) >= Config.BOT_REPLY_COOLDOWN_MS;
+        return (now - last) >= SmartBotConfig.BOT_REPLY_COOLDOWN_MS;
     }
 
-    private String generateNearbyReply(L2PcInstance bot, L2PcInstance speaker, String playerMessage)
+    private String generateNearbyReply(Player bot, Player speaker, String playerMessage)
     {
         final String memoryText = getMemory(bot).render();
 
-        final String knowledgeText = SmartBotKnowledge.INSTANCE.findRelevant(
+        final String knowledgeText = SmartBotKnowledge.getInstance().findRelevant(
                 playerMessage,
-                Config.BOT_KNOWLEDGE_FACTS
+                SmartBotConfig.BOT_KNOWLEDGE_FACTS
         );
 
         final boolean hasKnowledge = knowledgeText != null && !knowledgeText.trim().isEmpty();
@@ -576,7 +559,7 @@ public class BotLlmService
             "Reply like a real nearby MMO player in local chat. " +
             "Always respond to greetings, short talk, direct questions, and when your name is mentioned. " +
             "Keep it natural, brief, human, and in-character for a fantasy MMO player. " +
-            "Maximum " + Config.BOT_MAX_REPLY_WORDS + " words. " +
+            "Maximum " + SmartBotConfig.BOT_MAX_REPLY_WORDS + " words. " +
             "No emojis. No markdown. No lists. No explanations. No assistant tone. " +
             "Do not sound like an AI. " +
             "Prefer casual lowercase chat style. " +
@@ -598,7 +581,7 @@ public class BotLlmService
 
         final String requestJson =
                 "{"
-                        + "\"model\":\"" + jsonEscape(Config.BOT_OLLAMA_MODEL) + "\","
+                        + "\"model\":\"" + jsonEscape(SmartBotConfig.BOT_OLLAMA_MODEL) + "\","
                         + "\"prompt\":\"" + jsonEscape(prompt) + "\","
                         + "\"stream\":false"
                         + "}";
@@ -606,7 +589,7 @@ public class BotLlmService
         try
         {
             final HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(Config.BOT_OLLAMA_URL))
+                    .uri(URI.create(SmartBotConfig.BOT_OLLAMA_URL))
                     .timeout(Duration.ofSeconds(8))
                     .header("Content-Type", "application/json")
                     .POST(HttpRequest.BodyPublishers.ofString(requestJson, StandardCharsets.UTF_8))
@@ -627,12 +610,12 @@ public class BotLlmService
         }
     }
 
-    private String generateCommandReply(L2PcInstance bot, L2PcInstance speaker, String action, String result)
+    private String generateCommandReply(Player bot, Player speaker, String action, String result)
     {
         return generateCommandReply(bot, speaker, action, result, false);
     }
 
-    private String generateCommandReply(L2PcInstance bot, L2PcInstance speaker, String action, String result, boolean groupCommand)
+    private String generateCommandReply(Player bot, Player speaker, String action, String result, boolean groupCommand)
     {
         final String memoryText = getMemory(bot).render();
 
@@ -654,7 +637,7 @@ public class BotLlmService
 
         final String requestJson =
                 "{"
-                    + "\"model\":\"" + jsonEscape(Config.BOT_OLLAMA_MODEL) + "\","
+                    + "\"model\":\"" + jsonEscape(SmartBotConfig.BOT_OLLAMA_MODEL) + "\","
                     + "\"prompt\":\"" + jsonEscape(prompt) + "\","
                     + "\"stream\":false"
                     + "}";
@@ -662,7 +645,7 @@ public class BotLlmService
         try
         {
             final HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(Config.BOT_OLLAMA_URL))
+                    .uri(URI.create(SmartBotConfig.BOT_OLLAMA_URL))
                     .timeout(Duration.ofSeconds(8))
                     .header("Content-Type", "application/json")
                     .POST(HttpRequest.BodyPublishers.ofString(requestJson, StandardCharsets.UTF_8))
@@ -832,16 +815,16 @@ public class BotLlmService
             s = s.substring(1, s.length() - 1).trim();
         }
 
-        if (s.length() > Config.BOT_MAX_REPLY_CHARS)
+        if (s.length() > SmartBotConfig.BOT_MAX_REPLY_CHARS)
         {
-            s = s.substring(0, Config.BOT_MAX_REPLY_CHARS).trim();
+            s = s.substring(0, SmartBotConfig.BOT_MAX_REPLY_CHARS).trim();
         }
 
         final String[] parts = s.split("\\s+");
-        if (parts.length > Config.BOT_MAX_REPLY_WORDS)
+        if (parts.length > SmartBotConfig.BOT_MAX_REPLY_WORDS)
         {
             final StringBuilder sb = new StringBuilder();
-            for (int i = 0; i < Config.BOT_MAX_REPLY_WORDS; i++)
+            for (int i = 0; i < SmartBotConfig.BOT_MAX_REPLY_WORDS; i++)
             {
                 if (i > 0)
                 {
@@ -871,27 +854,20 @@ public class BotLlmService
         return jsonUnescape(matcher.group(1));
     }
 
-    private void say(L2PcInstance bot, String text)
+    private void say(Player bot, String text)
     {
         if (bot == null || text == null || text.isBlank())
         {
             return;
         }
 
-        final CreatureSay cs = new CreatureSay(bot.getObjectId(), Say2.ALL, bot.getName(), text);
+        final CreatureSay cs = new CreatureSay(bot, ChatType.GENERAL, bot.getName(), text);
 
-        for (L2PcInstance player : bot.getKnownList().getKnownPlayers().values())
-        {
-            if ((player != null) && bot.isInsideRadius(player, 1250, false, true))
-            {
-                player.sendPacket(cs);
-            }
-        }
-
+        bot.broadcastPacket(cs);
         bot.sendPacket(cs);
     }
 
-    private void sayWithHumanDelay(L2PcInstance bot, String text, boolean commandReply)
+    private void sayWithHumanDelay(Player bot, String text, boolean commandReply)
     {
         if (bot == null || text == null || text.isBlank())
         {
@@ -904,14 +880,7 @@ public class BotLlmService
         int words = text.trim().split("\\s+").length;
         int delay = base + (words * perWord) + Rnd.get(250, 900);
 
-        ThreadPoolManager.getInstance().scheduleGeneral(new Runnable()
-        {
-            @Override
-            public void run()
-            {
-                say(bot, text);
-            }
-        }, delay);
+        ThreadPool.schedule(() -> say(bot, text), delay);
     }
 
     private String decapitalizeReply(String text)
@@ -992,11 +961,11 @@ public class BotLlmService
             .replace("\\/", "/");
     }
 
-    private BotMemory getMemory(L2PcInstance bot)
+    private BotMemory getMemory(Player bot)
     {
         return memories.computeIfAbsent(
                 bot.getObjectId(),
-                k -> new BotMemory(Config.BOT_MEMORY_LINES)
+                k -> new BotMemory(SmartBotConfig.BOT_MEMORY_LINES)
         );
     }
 
@@ -1029,12 +998,12 @@ public class BotLlmService
                 || command == ChatCommand.STOP;
     }
 
-    private void handleAllBotsCommand(L2PcInstance speaker, String message, ChatCommand command)
+    private void handleAllBotsCommand(Player speaker, String message, ChatCommand command)
     {
         int affected = 0;
         boolean attackFoundMob = false;
 
-        for (L2PcInstance bot : getNearbyBots(speaker))
+        for (Player bot : getNearbyBots(speaker))
         {
             if (bot == null || bot.isDead())
             {
@@ -1048,27 +1017,27 @@ public class BotLlmService
             {
                 case FOLLOW:
                 {
-                    SmartBotManager.INSTANCE.setAttackMode(bot.getObjectId(), false);
-                    SmartBotManager.INSTANCE.clearAssistTarget(bot.getObjectId());
-                    SmartBotManager.INSTANCE.setFollowTarget(bot.getObjectId(), speaker.getObjectId());
+                    SmartBotManager.getInstance().setAttackMode(bot.getObjectId(), false);
+                    SmartBotManager.getInstance().clearAssistTarget(bot.getObjectId());
+                    SmartBotManager.getInstance().setFollowTarget(bot.getObjectId(), speaker.getObjectId());
                     affected++;
                     break;
                 }
 
                 case ASSIST:
                 {
-                    SmartBotManager.INSTANCE.clearFollowTarget(bot.getObjectId());
-                    SmartBotManager.INSTANCE.setAttackMode(bot.getObjectId(), false);
-                    SmartBotManager.INSTANCE.setAssistTarget(bot.getObjectId(), speaker.getObjectId());
+                    SmartBotManager.getInstance().clearFollowTarget(bot.getObjectId());
+                    SmartBotManager.getInstance().setAttackMode(bot.getObjectId(), false);
+                    SmartBotManager.getInstance().setAssistTarget(bot.getObjectId(), speaker.getObjectId());
                     affected++;
                     break;
                 }
 
                 case ATTACK:
                 {
-                    SmartBotManager.INSTANCE.clearFollowTarget(bot.getObjectId());
-                    SmartBotManager.INSTANCE.clearAssistTarget(bot.getObjectId());
-                    SmartBotManager.INSTANCE.setAttackMode(bot.getObjectId(), true);
+                    SmartBotManager.getInstance().clearFollowTarget(bot.getObjectId());
+                    SmartBotManager.getInstance().clearAssistTarget(bot.getObjectId());
+                    SmartBotManager.getInstance().setAttackMode(bot.getObjectId(), true);
 
                     if (commandAttackNearestMob(bot))
                     {
@@ -1081,7 +1050,7 @@ public class BotLlmService
 
                 case STOP:
                 {
-                    SmartBotManager.INSTANCE.stopBotActions(bot.getObjectId());
+                    SmartBotManager.getInstance().stopBotActions(bot.getObjectId());
                     affected++;
                     break;
                 }
@@ -1101,7 +1070,7 @@ public class BotLlmService
         /*
          * Only one nearby bot replies, otherwise "all follow" makes every bot spam chat.
          */
-        final L2PcInstance replyBot = findNearestNearbyBot(speaker);
+        final Player replyBot = findNearestNearbyBot(speaker);
         if (replyBot == null)
         {
             return;
@@ -1156,19 +1125,18 @@ public class BotLlmService
         }
     }
 
-    private Collection<L2PcInstance> getNearbyBots(L2PcInstance speaker)
+    private Collection<Player> getNearbyBots(Player speaker)
     {
-        final List<L2PcInstance> result = new ArrayList<>();
-        final double maxDistSq = Config.BOT_CHAT_RADIUS * Config.BOT_CHAT_RADIUS;
+        final List<Player> result = new ArrayList<>();
 
-        for (L2PcInstance bot : SmartBotManager.INSTANCE.getSpawnedBots())
+        for (Player bot : SmartBotManager.getInstance().getSpawnedBots())
         {
             if (bot == null || bot.isDead())
             {
                 continue;
             }
 
-            if (speaker.getDistanceSq(bot) > maxDistSq)
+            if (speaker.calculateDistance2D(bot) > SmartBotConfig.BOT_CHAT_RADIUS)
             {
                 continue;
             }
@@ -1179,28 +1147,27 @@ public class BotLlmService
         return result;
     }
 
-    private L2PcInstance selectBufferForMessage(L2PcInstance speaker, String rawMessage)
+    private Player selectBufferForMessage(Player speaker, String rawMessage)
     {
         final String normalized = normalize(rawMessage);
 
-        L2PcInstance best = null;
+        Player best = null;
         double bestDistance = Double.MAX_VALUE;
-        final double maxDistSq = Config.BOT_CHAT_RADIUS * Config.BOT_CHAT_RADIUS;
 
-        for (L2PcInstance bot : SmartBotManager.INSTANCE.getSpawnedBots())
+        for (Player bot : SmartBotManager.getInstance().getSpawnedBots())
         {
             if (bot == null || bot.isDead())
             {
                 continue;
             }
 
-            if (!SmartBotManager.INSTANCE.isRole(bot, SmartBotRole.BUFFER))
+            if (!SmartBotManager.getInstance().isRole(bot, SmartBotRole.BUFFER))
             {
                 continue;
             }
 
-            final double distance = speaker.getDistanceSq(bot);
-            if (distance > maxDistSq)
+            final double distance = speaker.calculateDistance2D(bot);
+            if (distance > SmartBotConfig.BOT_CHAT_RADIUS)
             {
                 continue;
             }

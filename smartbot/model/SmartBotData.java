@@ -1,4 +1,4 @@
-package net.sf.l2j.gameserver.smartbot.model;
+package org.l2jmobius.gameserver.smartbot.model;
 
 public class SmartBotData
 {

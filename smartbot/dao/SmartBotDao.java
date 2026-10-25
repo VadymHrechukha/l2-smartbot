@@ -1,4 +1,4 @@
-package net.sf.l2j.gameserver.smartbot.dao;
+package org.l2jmobius.gameserver.smartbot.dao;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -7,8 +7,8 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 
-import net.sf.l2j.L2DatabaseFactory;
-import net.sf.l2j.gameserver.smartbot.model.SmartBotData;
+import org.l2jmobius.commons.database.DatabaseFactory;
+import org.l2jmobius.gameserver.smartbot.model.SmartBotData;
 
 public class SmartBotDao {
     private static final String SELECT_ALL =
@@ -34,7 +34,7 @@ public class SmartBotDao {
     public List<SmartBotData> loadAll() {
         final List<SmartBotData> result = new ArrayList<>();
 
-        try (Connection con = L2DatabaseFactory.getInstance().getConnection();
+        try (Connection con = DatabaseFactory.getConnection();
              PreparedStatement ps = con.prepareStatement(SELECT_ALL);
              ResultSet rs = ps.executeQuery()) {
             while (rs.next()) {
@@ -48,7 +48,7 @@ public class SmartBotDao {
     }
 
     public SmartBotData findByCharObjId(int charObjId) {
-        try (Connection con = L2DatabaseFactory.getInstance().getConnection();
+        try (Connection con = DatabaseFactory.getConnection();
              PreparedStatement ps = con.prepareStatement(SELECT_ONE)) {
             ps.setInt(1, charObjId);
 
@@ -67,7 +67,7 @@ public class SmartBotDao {
     public void insert(SmartBotData data) {
         final long now = System.currentTimeMillis();
 
-        try (Connection con = L2DatabaseFactory.getInstance().getConnection();
+        try (Connection con = DatabaseFactory.getConnection();
              PreparedStatement ps = con.prepareStatement(INSERT)) {
             ps.setInt(1, data.getCharObjId());
             ps.setString(2, data.getBotName());
@@ -88,7 +88,7 @@ public class SmartBotDao {
     }
 
     public void update(SmartBotData data) {
-        try (Connection con = L2DatabaseFactory.getInstance().getConnection();
+        try (Connection con = DatabaseFactory.getConnection();
              PreparedStatement ps = con.prepareStatement(UPDATE)) {
             ps.setInt(1, data.getSpawnX());
             ps.setInt(2, data.getSpawnY());
@@ -122,7 +122,7 @@ public class SmartBotDao {
     }
 
     public void delete(int charObjId) {
-        try (Connection con = L2DatabaseFactory.getInstance().getConnection();
+        try (Connection con = DatabaseFactory.getConnection();
              PreparedStatement ps = con.prepareStatement(DELETE_BOT)) {
             ps.setInt(1, charObjId);
             ps.executeUpdate();
